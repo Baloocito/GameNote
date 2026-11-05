@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Fondo del icono -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M54,20 C35.2,20 20,35.2 20,54 C20,72.8 35.2,88 54,88 C72.8,88 88,72.8 88,54 C88,35.2 72.8,20 54,20 Z"/>
+
+    <!-- Control de juego / gamepad estilizado -->
+    <!-- Cuerpo del gamepad -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,46 C33.8,46 32,47.8 32,50 L32,62 C32,65.3 34.7,68 38,68 L44,68 L44,66 L64,66 L64,68 L70,68 C73.3,68 76,65.3 76,62 L76,50 C76,47.8 74.2,46 72,46 Z"/>
+
+    <!-- Cruz direccional izquierda -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M38,52 L40,52 L40,50 L44,50 L44,52 L46,52 L46,56 L44,56 L44,58 L40,58 L40,56 L38,56 Z"/>
+
+    <!-- Botones acción derecha -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M65,51 C66.1,51 67,51.9 67,53 C67,54.1 66.1,55 65,55 C63.9,55 63,54.1 63,53 C63,51.9 63.9,51 65,51 Z"/>
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M69,55 C70.1,55 71,55.9 71,57 C71,58.1 70.1,59 69,59 C67.9,59 67,58.1 67,57 C67,55.9 67.9,55 69,55 Z"/>
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M61,55 C62.1,55 63,55.9 63,57 C63,58.1 62.1,59 61,59 C59.9,59 59,58.1 59,57 C59,55.9 59.9,55 61,55 Z"/>
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M65,59 C66.1,59 67,59.9 67,61 C67,62.1 66.1,63 65,63 C63.9,63 63,62.1 63,61 C63,59.9 63.9,59 65,59 Z"/>
+
+    <!-- Nota musical (símbolo de nota) -->
+    <path
+        android:fillColor="#1A1A2E"
+        android:pathData="M50,36 L50,43 L48,44 C46.3,44.7 45,46.2 45,48 C45,49.7 46.3,51 48,51 C49.7,51 51,49.7 51,48 L51,39 L54,38 L54,41 L52,42 C50.9,42.4 50,43.4 50,44.5 L50,36 Z"/>
+</vector>

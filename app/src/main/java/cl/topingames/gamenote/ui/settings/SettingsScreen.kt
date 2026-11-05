@@ -1,5 +1,6 @@
 package cl.topingames.gamenote.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -79,4 +80,4 @@ fun SettingsScreen(
 }
 
 private fun Modifier.clickableSettings(onClick: () -> Unit): Modifier =
-    this.then(Modifier) // placeholder — real impl uses clickable {}
+    this.clickable(onClick = onClick)

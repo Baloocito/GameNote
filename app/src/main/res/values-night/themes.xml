@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme — GameNote usa modo oscuro por defecto en Compose,
+         pero declaramos el estilo aquí para que el sistema use
+         el fondo oscuro correcto en la splash / transición -->
+    <style name="Theme.GameNote" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#1A1A2E</item>
+        <item name="android:statusBarColor">#1A1A2E</item>
+        <item name="android:navigationBarColor">#1A1A2E</item>
+    </style>
+</resources>
