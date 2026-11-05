@@ -25,9 +25,9 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cl.topingames.gamenote.MainActivity
-import cl.topingames.gamenote.R
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlin.math.abs
 
 @AndroidEntryPoint
 class OverlayService : Service(),
@@ -37,7 +37,7 @@ class OverlayService : Service(),
 
     @Inject lateinit var overlayManager: OverlayManager
 
-    // --- Lifecycle boilerplate para ComposeView fuera de Activity ---
+    // Lifecycle para ComposeView fuera de Activity
     private val lifecycleRegistry = LifecycleRegistry(this)
     override val lifecycle: Lifecycle get() = lifecycleRegistry
 
@@ -52,15 +52,19 @@ class OverlayService : Service(),
     private var bubbleView: ComposeView? = null
     private var panelView: ComposeView? = null
 
-    private var bubbleX = 0
-    private var bubbleY = 200
+    // Posición persistente de la burbuja entre sesiones
+    private var bubbleX = 20
+    private var bubbleY = 300
 
     companion object {
         const val ACTION_SHOW = "cl.topingames.gamenote.OVERLAY_SHOW"
-        const val ACTION_HIDE = "cl.topingames.gamenote.OVERLAY_HIDE"
+        const val ACTION_HIDE  = "cl.topingames.gamenote.OVERLAY_HIDE"
         private const val CHANNEL_ID = "gamenote_overlay"
-        private const val NOTIF_ID = 1
+        private const val NOTIF_ID   = 1
+        private const val DRAG_THRESHOLD = 8f   // px mínimos para considerar drag
     }
+
+    // ─── Lifecycle ───────────────────────────────────────────────────────────
 
     override fun onCreate() {
         savedStateRegistryController.performAttach()
@@ -72,15 +76,22 @@ class OverlayService : Service(),
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_SHOW -> showOverlay()
-            ACTION_HIDE -> {
-                hideOverlay()
-                stopSelf()
-            }
-            else -> showOverlay()
+            ACTION_HIDE -> { hideOverlay(); stopSelf() }
+            else        -> showOverlay()
         }
         return START_STICKY
     }
+
+    override fun onDestroy() {
+        hideOverlay()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        _viewModelStore.clear()
+        super.onDestroy()
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    // ─── Overlay principal ───────────────────────────────────────────────────
 
     private fun showOverlay() {
         startForeground(NOTIF_ID, buildNotification())
@@ -96,70 +107,62 @@ class OverlayService : Service(),
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
     }
 
-    // ---- Burbuja flotante ----
+    // ─── Burbuja ─────────────────────────────────────────────────────────────
 
     private fun addBubble() {
         if (bubbleView != null) return
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = bubbleX
-            y = bubbleY
+        val params = bubbleLayoutParams()
+
+        val view = ComposeView(this).also { bubbleView = it }
+        view.setViewTreeLifecycleOwner(this)
+        view.setViewTreeViewModelStoreOwner(this)
+        view.setViewTreeSavedStateRegistryOwner(this)
+        view.setContent {
+            OverlayBubble()   // puramente visual, sin callbacks de Compose
         }
 
-        bubbleView = ComposeView(this).apply {
-            setViewTreeLifecycleOwner(this@OverlayService)
-            setViewTreeViewModelStoreOwner(this@OverlayService)
-            setViewTreeSavedStateRegistryOwner(this@OverlayService)
-            setContent {
-                OverlayBubble(
-                    onTap = { showPanel() },
-                    onClose = {
-                        stopSelf()
-                    }
-                )
-            }
-        }
+        // ── Touch manejado 100% en View layer ──────────────────────────────
+        var downRawX = 0f
+        var downRawY = 0f
+        var downParamX = 0
+        var downParamY = 0
+        var dragged = false
+        var downTime = 0L
 
-        // Touch drag para mover la burbuja
-        var initialTouchX = 0f
-        var initialTouchY = 0f
-        var initialX = 0
-        var initialY = 0
-        var isDragging = false
-
-        bubbleView!!.setOnTouchListener { _, event ->
+        view.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
-                    initialX = params.x
-                    initialY = params.y
-                    isDragging = false
+                    downRawX   = event.rawX
+                    downRawY   = event.rawY
+                    downParamX = params.x
+                    downParamY = params.y
+                    dragged    = false
+                    downTime   = System.currentTimeMillis()
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - initialTouchX).toInt()
-                    val dy = (event.rawY - initialTouchY).toInt()
-                    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                        isDragging = true
-                        params.x = initialX + dx
-                        params.y = initialY + dy
-                        bubbleX = params.x
-                        bubbleY = params.y
-                        windowManager.updateViewLayout(bubbleView, params)
+                    val dx = event.rawX - downRawX
+                    val dy = event.rawY - downRawY
+                    if (!dragged && (abs(dx) > DRAG_THRESHOLD || abs(dy) > DRAG_THRESHOLD)) {
+                        dragged = true
+                    }
+                    if (dragged) {
+                        params.x = (downParamX + dx).toInt()
+                        params.y = (downParamY + dy).toInt()
+                        bubbleX  = params.x
+                        bubbleY  = params.y
+                        windowManager.updateViewLayout(view, params)
                     }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!isDragging) {
-                        bubbleView?.performClick()
+                    val elapsed = System.currentTimeMillis() - downTime
+                    when {
+                        // Tap corto → abrir panel
+                        !dragged && elapsed < 400 -> showPanel()
+                        // Long press → cerrar servicio
+                        !dragged && elapsed >= 700 -> stopSelf()
                     }
                     true
                 }
@@ -167,68 +170,77 @@ class OverlayService : Service(),
             }
         }
 
-        windowManager.addView(bubbleView, params)
+        windowManager.addView(view, params)
+    }
+
+    private fun bubbleLayoutParams() = WindowManager.LayoutParams(
+        WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+        PixelFormat.TRANSLUCENT
+    ).apply {
+        gravity = Gravity.TOP or Gravity.START
+        x = bubbleX
+        y = bubbleY
     }
 
     private fun removeBubble() {
-        bubbleView?.let {
-            windowManager.removeView(it)
-            bubbleView = null
-        }
+        bubbleView?.let { windowManager.removeView(it); bubbleView = null }
     }
 
-    // ---- Panel de nota rápida ----
+    // ─── Panel ───────────────────────────────────────────────────────────────
 
-    fun showPanel() {
+    private fun showPanel() {
         if (panelView != null) return
         removeBubble()
 
+        // El panel necesita foco para el teclado
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.BOTTOM
+            gravity     = Gravity.BOTTOM
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         }
 
-        panelView = ComposeView(this).apply {
-            setViewTreeLifecycleOwner(this@OverlayService)
-            setViewTreeViewModelStoreOwner(this@OverlayService)
-            setViewTreeSavedStateRegistryOwner(this@OverlayService)
-            setContent {
-                OverlayPanel(
-                    onSaved = { hidePanel() },
-                    onDismiss = { hidePanel() },
-                    onOpenApp = {
-                        hidePanel()
-                        val intent = Intent(this@OverlayService, MainActivity::class.java).apply {
+        val view = ComposeView(this).also { panelView = it }
+        view.setViewTreeLifecycleOwner(this)
+        view.setViewTreeViewModelStoreOwner(this)
+        view.setViewTreeSavedStateRegistryOwner(this)
+        view.setContent {
+            OverlayPanel(
+                onSaved   = { hidePanel() },
+                onDismiss = { hidePanel() },
+                onOpenApp = {
+                    hidePanel()
+                    startActivity(
+                        Intent(this@OverlayService, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         }
-                        startActivity(intent)
-                    }
-                )
-            }
+                    )
+                }
+            )
         }
 
-        windowManager.addView(panelView, params)
+        windowManager.addView(view, params)
     }
 
-    fun hidePanel() {
+    private fun hidePanel() {
         removePanel()
         addBubble()
     }
 
     private fun removePanel() {
-        panelView?.let {
-            windowManager.removeView(it)
-            panelView = null
-        }
+        panelView?.let { windowManager.removeView(it); panelView = null }
     }
 
-    // ---- Notificación persistente ----
+    // ─── Notificación ────────────────────────────────────────────────────────
 
     private fun buildNotification(): Notification {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -238,26 +250,17 @@ class OverlayService : Service(),
                     .apply { description = "Burbuja flotante activa" }
             )
         }
-        val stopIntent = PendingIntent.getService(
+        val stopPi = PendingIntent.getService(
             this, 0,
             Intent(this, OverlayService::class.java).apply { action = ACTION_HIDE },
             PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("GameNote activo")
-            .setContentText("Toca la burbuja verde para tomar notas")
+            .setContentText("Toca la burbuja para anotar · mantén presionada para cerrar")
             .setSmallIcon(android.R.drawable.ic_menu_edit)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Desactivar", stopIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Desactivar", stopPi)
             .build()
     }
-
-    override fun onDestroy() {
-        hideOverlay()
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        _viewModelStore.clear()
-        super.onDestroy()
-    }
-
-    override fun onBind(intent: Intent?): IBinder? = null
 }

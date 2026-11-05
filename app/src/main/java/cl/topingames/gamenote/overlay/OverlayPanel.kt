@@ -14,11 +14,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.OpenInFull
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -41,6 +38,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.topingames.gamenote.ui.theme.GameNoteTheme
 
+// Fondo oscuro con 85% de opacidad — se ve el juego detrás pero el texto es legible
+private val PanelBg = Color(0xFF0D1117).copy(alpha = 0.88f)
+private val GreenAccent = Color(0xFF4CAF50)
+private val TextHint = Color.White.copy(alpha = 0.35f)
+
 @Composable
 fun OverlayPanel(
     onSaved: () -> Unit,
@@ -52,128 +54,111 @@ fun OverlayPanel(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        runCatching { focusRequester.requestFocus() }
     }
 
     GameNoteTheme {
+        // Contenedor compacto pegado al fondo
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                .background(Color(0xFF16213E))
-                .padding(16.dp)
+                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                .background(PanelBg)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            // Header
+            // ── Fila header ──────────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Nota rápida",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    text = "✎  Nota rápida",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = GreenAccent,
                     modifier = Modifier.weight(1f)
                 )
                 // Abrir app completa
-                IconButton(onClick = onOpenApp) {
-                    Icon(
-                        Icons.Default.OpenInFull,
-                        contentDescription = "Abrir GameNote",
-                        tint = Color(0xFF4CAF50)
-                    )
+                TextButton(
+                    onClick = onOpenApp,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                ) {
+                    Text("Ver todo", color = Color.White.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.labelSmall)
                 }
-                // Cerrar panel
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = Color.White.copy(alpha = 0.6f)
-                    )
+                IconButton(onClick = onDismiss, modifier = Modifier
+                    .width(32.dp)
+                    .height(32.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar",
+                        tint = Color.White.copy(alpha = 0.4f))
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            // Campo título
-            OutlinedTextField(
-                value = uiState.title,
-                onValueChange = viewModel::onTitleChange,
-                placeholder = { Text("Título de la nota...", color = Color.White.copy(alpha = 0.4f)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF4CAF50),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                    cursorColor = Color(0xFF4CAF50)
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Campo contenido
+            // ── Campo de texto único y rápido ────────────────────────────────
             OutlinedTextField(
                 value = uiState.content,
                 onValueChange = viewModel::onContentChange,
-                placeholder = { Text("coordenadas, semilla, estrategia...", color = Color.White.copy(alpha = 0.4f)) },
+                placeholder = {
+                    Text(
+                        "coordenadas, semilla, estrategia…",
+                        color = TextHint,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
+                    .height(80.dp)
                     .focusRequester(focusRequester),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF4CAF50),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                    cursorColor = Color(0xFF4CAF50)
+                    focusedBorderColor   = GreenAccent.copy(alpha = 0.6f),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                    cursorColor          = GreenAccent,
+                    focusedTextColor     = Color.White,
+                    unfocusedTextColor   = Color.White
                 ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                shape = RoundedCornerShape(10.dp)
             )
 
-            // Feedback de guardado
-            if (uiState.saved) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "✓ Nota guardada",
-                    color = Color(0xFF4CAF50),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            if (uiState.error != null) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    uiState.error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Botones acción
+            // ── Fila acción ───────────────────────────────────────────────────
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Cancelar", color = Color.White.copy(alpha = 0.6f))
+                // Feedback
+                when {
+                    uiState.saved ->
+                        Text("✓ Guardada", color = GreenAccent,
+                            style = MaterialTheme.typography.labelSmall)
+                    uiState.error != null ->
+                        Text(uiState.error!!, color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall)
+                    else -> Spacer(Modifier.width(1.dp))
                 }
-                Spacer(Modifier.width(8.dp))
-                FilledTonalIconButton(
-                    onClick = {
-                        viewModel.saveNote(onSuccess = onSaved)
-                    },
-                    enabled = uiState.title.isNotBlank() || uiState.content.isNotBlank(),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = Color(0xFF4CAF50),
-                        contentColor = Color.White
-                    )
+
+                // Botón guardar compacto
+                IconButton(
+                    onClick = { viewModel.saveNote(onSuccess = onSaved) },
+                    enabled = uiState.content.isNotBlank(),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (uiState.content.isNotBlank()) GreenAccent
+                            else Color.White.copy(alpha = 0.08f)
+                        )
+                        .width(44.dp)
+                        .height(36.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = "Guardar")
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Guardar",
+                        tint = if (uiState.content.isNotBlank()) Color.White
+                               else Color.White.copy(alpha = 0.3f)
+                    )
                 }
             }
         }
