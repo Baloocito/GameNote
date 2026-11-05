@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-debug:
     name: Build Debug APK
     runs-on: ubuntu-latest
 
@@ -21,23 +21,14 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Dar permisos a Gradle
-        run: chmod +x gradlew
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          gradle-version: "8.11.1"
 
       - name: Build APK Debug
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: Subir APK Debug
         uses: actions/upload-artifact@v4
@@ -46,7 +37,7 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
-  release:
+  build-release:
     name: Build Release APK
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -60,23 +51,14 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Dar permisos a Gradle
-        run: chmod +x gradlew
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          gradle-version: "8.11.1"
 
       - name: Build APK Release (unsigned)
-        run: ./gradlew assembleRelease --stacktrace
+        run: gradle assembleRelease --stacktrace
 
       - name: Subir APK Release
         uses: actions/upload-artifact@v4
