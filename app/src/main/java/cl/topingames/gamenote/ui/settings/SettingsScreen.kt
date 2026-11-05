@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToOverlay: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -31,6 +32,20 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
+                Text("Gaming", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text("Burbuja flotante") },
+                    supportingContent = { Text("Toma notas sin salir de tu juego") },
+                    leadingContent = { Icon(Icons.Default.SportsEsports, contentDescription = null) },
+                    trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                    modifier = Modifier.clickableSettings { onNavigateToOverlay() }
+                )
+            }
+
+            item {
+                Divider()
                 Text("Apariencia", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
             }
             item {

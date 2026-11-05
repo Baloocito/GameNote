@@ -10,6 +10,7 @@ import cl.topingames.gamenote.ui.games.GameDetailScreen
 import cl.topingames.gamenote.ui.games.GamesScreen
 import cl.topingames.gamenote.ui.home.HomeScreen
 import cl.topingames.gamenote.ui.notes.NoteEditorScreen
+import cl.topingames.gamenote.ui.overlay.OverlaySetupScreen
 import cl.topingames.gamenote.ui.search.SearchScreen
 import cl.topingames.gamenote.ui.settings.SettingsScreen
 
@@ -32,6 +33,7 @@ sealed class Screen(val route: String) {
     }
     object Search : Screen("search")
     object Settings : Screen("settings")
+    object Overlay : Screen("overlay")
 }
 
 @Composable
@@ -116,8 +118,13 @@ fun GameNoteNavGraph(navController: NavHostController) {
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOverlay = { navController.navigate(Screen.Overlay.route) }
             )
+        }
+
+        composable(Screen.Overlay.route) {
+            OverlaySetupScreen()
         }
     }
 }
