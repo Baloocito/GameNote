@@ -209,16 +209,19 @@ class OverlayService : Service(),
         removeBubble()
         overlayViewModel.reset()   // limpiar estado del panel anterior
 
+        // Sin FLAG_NOT_FOCUSABLE ni FLAG_ALT_FOCUSABLE_IM:
+        // la ventana puede recibir foco normal → el sistema muestra el teclado
+        // FLAG_WATCH_OUTSIDE_TOUCH permite detectar toque fuera para cerrar
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or
-                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity       = Gravity.BOTTOM
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
                             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         }
 
@@ -256,20 +259,13 @@ class OverlayService : Service(),
 
         windowManager.addView(view, params)
 
-        // Forzar teclado explícitamente — MIUI ignora SOFT_INPUT_STATE_VISIBLE en overlays
+        // MIUI requiere toggleSoftInput en lugar de showSoftInput para overlays
         view.post {
             view.requestFocus()
             val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(view, InputMethodManager.SHOW_FORCED)
+            @Suppress("DEPRECATION")
+            imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
         }
-        // Segundo intento con delay por si MIUI tarda en aceptar el foco del overlay
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            panelView?.let { v ->
-                v.requestFocus()
-                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-                imm.showSoftInput(v, InputMethodManager.SHOW_FORCED)
-            }
-        }, 200)
     }
 
     private fun hidePanel() {
