@@ -29,6 +29,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cl.topingames.gamenote.MainActivity
 import cl.topingames.gamenote.data.repository.NoteRepository
+import android.view.inputmethod.InputMethodManager
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
@@ -254,7 +255,21 @@ class OverlayService : Service(),
         }
 
         windowManager.addView(view, params)
-        view.post { view.requestFocus() }
+
+        // Forzar teclado explícitamente — MIUI ignora SOFT_INPUT_STATE_VISIBLE en overlays
+        view.post {
+            view.requestFocus()
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(view, InputMethodManager.SHOW_FORCED)
+        }
+        // Segundo intento con delay por si MIUI tarda en aceptar el foco del overlay
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            panelView?.let { v ->
+                v.requestFocus()
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(v, InputMethodManager.SHOW_FORCED)
+            }
+        }, 200)
     }
 
     private fun hidePanel() {
@@ -263,7 +278,13 @@ class OverlayService : Service(),
     }
 
     private fun removePanel() {
-        panelView?.let { windowManager.removeView(it); panelView = null }
+        panelView?.let { v ->
+            // Cerrar teclado antes de remover la vista
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(v.windowToken, 0)
+            windowManager.removeView(v)
+            panelView = null
+        }
     }
 
     // ─── Notificación ────────────────────────────────────────────────────────
