@@ -30,7 +30,7 @@ fun OverlayBubble() {
                 .shadow(4.dp, CircleShape)
                 .clip(CircleShape)
                 // Verde TopinGames al 70% de opacidad — no distrae
-                .background(Color(0xFF4CAF50).copy(alpha = 0.70f)),
+                .background(Color(0xFF4CAF50).copy(alpha = 0.50f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(

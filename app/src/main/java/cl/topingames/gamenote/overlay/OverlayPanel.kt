@@ -54,6 +54,8 @@ fun OverlayPanel(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
+        // pequeño delay para que el WindowManager termine de adjuntar la view
+        kotlinx.coroutines.delay(80)
         runCatching { focusRequester.requestFocus() }
     }
 

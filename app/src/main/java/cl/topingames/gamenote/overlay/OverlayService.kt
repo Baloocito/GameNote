@@ -197,16 +197,19 @@ class OverlayService : Service(),
         if (panelView != null) return
         removeBubble()
 
-        // El panel necesita foco para el teclado
+        // FLAG_ALT_FOCUSABLE_IM: permite recibir foco Y que el teclado suba sobre el overlay
+        // Sin FLAG_NOT_FOCUSABLE para que el ComposeView reciba eventos de teclado
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or
+                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity     = Gravity.BOTTOM
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            gravity       = Gravity.BOTTOM
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
+                            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         }
 
         val view = ComposeView(this).also { panelView = it }
@@ -228,7 +231,17 @@ class OverlayService : Service(),
             )
         }
 
+        // Cerrar si toca fuera del panel
+        view.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE) {
+                hidePanel()
+            }
+            false   // no consumir — el ComposeView maneja sus propios eventos internos
+        }
+
         windowManager.addView(view, params)
+        // Foco explícito para que el sistema muestre el teclado
+        view.post { view.requestFocus() }
     }
 
     private fun hidePanel() {
