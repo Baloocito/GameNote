@@ -11,11 +11,14 @@ import android.os.IBinder
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -25,9 +28,20 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cl.topingames.gamenote.MainActivity
+import cl.topingames.gamenote.data.repository.NoteRepository
 import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import dagger.hilt.EntryPoint
 import javax.inject.Inject
 import kotlin.math.abs
+
+/** EntryPoint para obtener NoteRepository en un contexto no-Activity (Service). */
+@EntryPoint
+@dagger.hilt.InstallIn(SingletonComponent::class)
+interface OverlayEntryPoint {
+    fun noteRepository(): NoteRepository
+}
 
 @AndroidEntryPoint
 class OverlayService : Service(),
@@ -49,10 +63,13 @@ class OverlayService : Service(),
         get() = savedStateRegistryController.savedStateRegistry
 
     private lateinit var windowManager: WindowManager
+
+    // ViewModel creado manualmente con factory — SIN Hilt en el Composable
+    private lateinit var overlayViewModel: OverlayViewModel
+
     private var bubbleView: ComposeView? = null
     private var panelView: ComposeView? = null
 
-    // Posición persistente de la burbuja entre sesiones
     private var bubbleX = 20
     private var bubbleY = 300
 
@@ -61,7 +78,7 @@ class OverlayService : Service(),
         const val ACTION_HIDE  = "cl.topingames.gamenote.OVERLAY_HIDE"
         private const val CHANNEL_ID = "gamenote_overlay"
         private const val NOTIF_ID   = 1
-        private const val DRAG_THRESHOLD = 8f   // px mínimos para considerar drag
+        private const val DRAG_THRESHOLD = 8f
     }
 
     // ─── Lifecycle ───────────────────────────────────────────────────────────
@@ -72,6 +89,14 @@ class OverlayService : Service(),
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+
+        // Obtener NoteRepository via EntryPoint (applicationContext ya tiene el grafo de Hilt)
+        val entryPoint = EntryPointAccessors.fromApplication(
+            applicationContext,
+            OverlayEntryPoint::class.java
+        )
+        val factory = OverlayViewModel.Factory(entryPoint.noteRepository())
+        overlayViewModel = ViewModelProvider(this, factory)[OverlayViewModel::class.java]
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -113,45 +138,33 @@ class OverlayService : Service(),
         if (bubbleView != null) return
 
         val params = bubbleLayoutParams()
-
         val view = ComposeView(this).also { bubbleView = it }
         view.setViewTreeLifecycleOwner(this)
         view.setViewTreeViewModelStoreOwner(this)
         view.setViewTreeSavedStateRegistryOwner(this)
-        view.setContent {
-            OverlayBubble()   // puramente visual, sin callbacks de Compose
-        }
+        view.setContent { OverlayBubble() }
 
-        // ── Touch manejado 100% en View layer ──────────────────────────────
-        var downRawX = 0f
-        var downRawY = 0f
-        var downParamX = 0
-        var downParamY = 0
-        var dragged = false
-        var downTime = 0L
+        var downRawX = 0f; var downRawY = 0f
+        var downParamX = 0; var downParamY = 0
+        var dragged = false; var downTime = 0L
 
         view.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    downRawX   = event.rawX
-                    downRawY   = event.rawY
-                    downParamX = params.x
-                    downParamY = params.y
-                    dragged    = false
-                    downTime   = System.currentTimeMillis()
+                    downRawX = event.rawX; downRawY = event.rawY
+                    downParamX = params.x; downParamY = params.y
+                    dragged = false; downTime = System.currentTimeMillis()
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - downRawX
                     val dy = event.rawY - downRawY
-                    if (!dragged && (abs(dx) > DRAG_THRESHOLD || abs(dy) > DRAG_THRESHOLD)) {
+                    if (!dragged && (abs(dx) > DRAG_THRESHOLD || abs(dy) > DRAG_THRESHOLD))
                         dragged = true
-                    }
                     if (dragged) {
                         params.x = (downParamX + dx).toInt()
                         params.y = (downParamY + dy).toInt()
-                        bubbleX  = params.x
-                        bubbleY  = params.y
+                        bubbleX = params.x; bubbleY = params.y
                         windowManager.updateViewLayout(view, params)
                     }
                     true
@@ -159,9 +172,7 @@ class OverlayService : Service(),
                 MotionEvent.ACTION_UP -> {
                     val elapsed = System.currentTimeMillis() - downTime
                     when {
-                        // Tap corto → abrir panel
-                        !dragged && elapsed < 400 -> showPanel()
-                        // Long press → cerrar servicio
+                        !dragged && elapsed < 400  -> showPanel()
                         !dragged && elapsed >= 700 -> stopSelf()
                     }
                     true
@@ -183,8 +194,7 @@ class OverlayService : Service(),
         PixelFormat.TRANSLUCENT
     ).apply {
         gravity = Gravity.TOP or Gravity.START
-        x = bubbleX
-        y = bubbleY
+        x = bubbleX; y = bubbleY
     }
 
     private fun removeBubble() {
@@ -196,9 +206,8 @@ class OverlayService : Service(),
     private fun showPanel() {
         if (panelView != null) return
         removeBubble()
+        overlayViewModel.reset()   // limpiar estado del panel anterior
 
-        // FLAG_ALT_FOCUSABLE_IM: permite recibir foco Y que el teclado suba sobre el overlay
-        // Sin FLAG_NOT_FOCUSABLE para que el ComposeView reciba eventos de teclado
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -216,11 +225,19 @@ class OverlayService : Service(),
         view.setViewTreeLifecycleOwner(this)
         view.setViewTreeViewModelStoreOwner(this)
         view.setViewTreeSavedStateRegistryOwner(this)
+
         view.setContent {
+            // Estado del ViewModel observado en Compose — sin viewModel(), sin Hilt
+            val uiState by overlayViewModel.uiState.collectAsState()
+
             OverlayPanel(
-                onSaved   = { hidePanel() },
-                onDismiss = { hidePanel() },
-                onOpenApp = {
+                content         = uiState.content,
+                saved           = uiState.saved,
+                error           = uiState.error,
+                onContentChange = overlayViewModel::onContentChange,
+                onSave          = { overlayViewModel.saveNote { hidePanel() } },
+                onDismiss       = { hidePanel() },
+                onOpenApp       = {
                     hidePanel()
                     startActivity(
                         Intent(this@OverlayService, MainActivity::class.java).apply {
@@ -231,16 +248,12 @@ class OverlayService : Service(),
             )
         }
 
-        // Cerrar si toca fuera del panel
         view.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE) {
-                hidePanel()
-            }
-            false   // no consumir — el ComposeView maneja sus propios eventos internos
+            if (event.action == MotionEvent.ACTION_OUTSIDE) hidePanel()
+            false
         }
 
         windowManager.addView(view, params)
-        // Foco explícito para que el sistema muestre el teclado
         view.post { view.requestFocus() }
     }
 

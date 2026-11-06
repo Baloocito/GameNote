@@ -1,16 +1,15 @@
 package cl.topingames.gamenote.overlay
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import cl.topingames.gamenote.data.repository.NoteRepository
 import cl.topingames.gamenote.domain.model.Note
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class OverlayUiState(
     val content: String = "",
@@ -18,8 +17,11 @@ data class OverlayUiState(
     val error: String? = null
 )
 
-@HiltViewModel
-class OverlayViewModel @Inject constructor(
+/**
+ * ViewModel SIN @HiltViewModel — se instancia manualmente desde OverlayService
+ * usando OverlayViewModelFactory para evitar el crash de Hilt fuera de Activity/Fragment.
+ */
+class OverlayViewModel(
     private val noteRepository: NoteRepository
 ) : ViewModel() {
 
@@ -39,7 +41,7 @@ class OverlayViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 noteRepository.saveNote(
                     Note(
-                        title = text.take(50),   // primera línea como título
+                        title   = text.take(50),
                         content = text,
                         createdAt = now,
                         updatedAt = now
@@ -52,5 +54,16 @@ class OverlayViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(error = "Error: ${e.message?.take(40)}")
             }
         }
+    }
+
+    fun reset() {
+        _uiState.value = OverlayUiState()
+    }
+
+    // Factory para instanciar desde Service sin Hilt
+    class Factory(private val repository: NoteRepository) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            OverlayViewModel(repository) as T
     }
 }

@@ -23,8 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,32 +33,34 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.topingames.gamenote.ui.theme.GameNoteTheme
 
-// Fondo oscuro con 85% de opacidad — se ve el juego detrás pero el texto es legible
-private val PanelBg = Color(0xFF0D1117).copy(alpha = 0.88f)
+private val PanelBg    = Color(0xFF0D1117).copy(alpha = 0.88f)
 private val GreenAccent = Color(0xFF4CAF50)
-private val TextHint = Color.White.copy(alpha = 0.35f)
+private val TextHint   = Color.White.copy(alpha = 0.35f)
 
+/**
+ * Panel sin ViewModel propio — el estado vive en OverlayService
+ * para evitar el crash de Hilt fuera de una Activity/Fragment.
+ */
 @Composable
 fun OverlayPanel(
-    onSaved: () -> Unit,
+    content: String,
+    saved: Boolean,
+    error: String?,
+    onContentChange: (String) -> Unit,
+    onSave: () -> Unit,
     onDismiss: () -> Unit,
-    onOpenApp: () -> Unit,
-    viewModel: OverlayViewModel = viewModel()
+    onOpenApp: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        // pequeño delay para que el WindowManager termine de adjuntar la view
         kotlinx.coroutines.delay(80)
         runCatching { focusRequester.requestFocus() }
     }
 
     GameNoteTheme {
-        // Contenedor compacto pegado al fondo
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -68,7 +68,7 @@ fun OverlayPanel(
                 .background(PanelBg)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            // ── Fila header ──────────────────────────────────────────────────
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -80,7 +80,6 @@ fun OverlayPanel(
                     color = GreenAccent,
                     modifier = Modifier.weight(1f)
                 )
-                // Abrir app completa
                 TextButton(
                     onClick = onOpenApp,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
@@ -88,24 +87,23 @@ fun OverlayPanel(
                     Text("Ver todo", color = Color.White.copy(alpha = 0.5f),
                         style = MaterialTheme.typography.labelSmall)
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier
-                    .width(32.dp)
-                    .height(32.dp)) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.width(32.dp).height(32.dp)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Cerrar",
                         tint = Color.White.copy(alpha = 0.4f))
                 }
             }
 
-            // ── Campo de texto único y rápido ────────────────────────────────
+            // Campo texto
             OutlinedTextField(
-                value = uiState.content,
-                onValueChange = viewModel::onContentChange,
+                value = content,
+                onValueChange = onContentChange,
                 placeholder = {
-                    Text(
-                        "coordenadas, semilla, estrategia…",
+                    Text("coordenadas, semilla, estrategia…",
                         color = TextHint,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                        style = MaterialTheme.typography.bodySmall)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -123,44 +121,35 @@ fun OverlayPanel(
                 shape = RoundedCornerShape(10.dp)
             )
 
-            // ── Fila acción ───────────────────────────────────────────────────
+            // Fila acción
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Feedback
                 when {
-                    uiState.saved ->
-                        Text("✓ Guardada", color = GreenAccent,
-                            style = MaterialTheme.typography.labelSmall)
-                    uiState.error != null ->
-                        Text(uiState.error!!, color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.labelSmall)
-                    else -> Spacer(Modifier.width(1.dp))
+                    saved        -> Text("✓ Guardada", color = GreenAccent,
+                                        style = MaterialTheme.typography.labelSmall)
+                    error != null -> Text(error, color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.labelSmall)
+                    else         -> Spacer(Modifier.width(1.dp))
                 }
 
-                // Botón guardar compacto
                 IconButton(
-                    onClick = { viewModel.saveNote(onSuccess = onSaved) },
-                    enabled = uiState.content.isNotBlank(),
+                    onClick = onSave,
+                    enabled = content.isNotBlank(),
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .background(
-                            if (uiState.content.isNotBlank()) GreenAccent
+                            if (content.isNotBlank()) GreenAccent
                             else Color.White.copy(alpha = 0.08f)
                         )
                         .width(44.dp)
                         .height(36.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = "Guardar",
-                        tint = if (uiState.content.isNotBlank()) Color.White
-                               else Color.White.copy(alpha = 0.3f)
-                    )
+                    Icon(Icons.Default.Check, contentDescription = "Guardar",
+                        tint = if (content.isNotBlank()) Color.White
+                               else Color.White.copy(alpha = 0.3f))
                 }
             }
         }
