@@ -70,6 +70,7 @@ class OverlayService : Service(),
 
     private var bubbleView: ComposeView? = null
     private var panelView: ComposeView? = null
+    private var dismissView: android.view.View? = null  // capa transparente para cerrar panel
 
     private var bubbleX = 20
     private var bubbleY = 300
@@ -127,6 +128,7 @@ class OverlayService : Service(),
     }
 
     private fun hideOverlay() {
+        removeDismissLayer()
         removeBubble()
         removePanel()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
@@ -176,8 +178,10 @@ class OverlayService : Service(),
                 MotionEvent.ACTION_UP -> {
                     val elapsed = System.currentTimeMillis() - downTime
                     when {
-                        !dragged && elapsed < 400  -> showPanel()
-                        !dragged && elapsed >= 700 -> stopSelf()
+                        // Si el panel está abierto, cualquier tap en la burbuja lo cierra
+                        !dragged && panelView != null -> hidePanel()
+                        !dragged && elapsed < 400     -> showPanel()
+                        !dragged && elapsed >= 700    -> stopSelf()
                     }
                     true
                 }
@@ -209,12 +213,12 @@ class OverlayService : Service(),
 
     private fun showPanel() {
         if (panelView != null) return
-        // NO removemos la burbuja — sigue visible mostrando el texto en tiempo real
-        overlayViewModel.reset()   // limpiar estado del panel anterior
+        overlayViewModel.reset()
 
-        // Sin FLAG_NOT_FOCUSABLE ni FLAG_ALT_FOCUSABLE_IM:
-        // la ventana puede recibir foco normal → el sistema muestra el teclado
-        // FLAG_WATCH_OUTSIDE_TOUCH permite detectar toque fuera para cerrar
+        // Capa transparente que cubre el resto de la pantalla — tocarla cierra el panel
+        // Es la forma más confiable en MIUI porque ACTION_OUTSIDE no siempre dispara
+        addDismissLayer()
+
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -271,21 +275,41 @@ class OverlayService : Service(),
     }
 
     private fun hidePanel() {
+        removeDismissLayer()
         removePanel()
         overlayViewModel.reset()
-        // La burbuja ya estaba visible — solo actualiza su estado a Idle
-        // Si por algún motivo fue removida, la re-agregamos
         if (bubbleView == null) addBubble()
     }
 
     private fun removePanel() {
         panelView?.let { v ->
-            // Cerrar teclado antes de remover la vista
             val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(v.windowToken, 0)
             windowManager.removeView(v)
             panelView = null
         }
+    }
+
+    // Capa transparente que cubre la pantalla excepto el panel (abajo)
+    // Tocarla es la salida de emergencia más confiable en MIUI
+    private fun addDismissLayer() {
+        if (dismissView != null) return
+        val view = android.view.View(this).also { dismissView = it }
+        view.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        view.setOnClickListener { hidePanel() }
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP }
+        windowManager.addView(view, params)
+    }
+
+    private fun removeDismissLayer() {
+        dismissView?.let { windowManager.removeView(it); dismissView = null }
     }
 
     // ─── Notificación ────────────────────────────────────────────────────────
