@@ -1,9 +1,7 @@
 package cl.topingames.gamenote.overlay
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -11,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -20,7 +17,6 @@ import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,9 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cl.topingames.gamenote.ui.theme.GameNoteTheme
 
-private val GreenMain  = Color(0xFF4CAF50)
-private val BubbleBg   = Color(0xFF0D1117).copy(alpha = 0.92f)
-private val GreenDim   = Color(0xFF4CAF50).copy(alpha = 0.50f)
+private val GreenMain = Color(0xFF4CAF50)
+private val GreenDim  = Color(0xFF4CAF50).copy(alpha = 0.50f)
 
 sealed class BubbleState {
     object Idle : BubbleState()
@@ -42,24 +37,29 @@ sealed class BubbleState {
     object Saved : BubbleState()
 }
 
-/**
- * Burbuja que cambia de forma según el estado:
- *  - Idle  → círculo verde con gamepad (36dp)
- *  - Typing → bocadillo de cómic con el texto en tiempo real
- *  - Saved  → check verde por 1s antes de volver a Idle
- */
+// Clave de animación: solo el TIPO, no el texto — evita parpadeo al escribir
+private fun BubbleState.animKey() = when (this) {
+    is BubbleState.Idle   -> 0
+    is BubbleState.Typing -> 1   // mismo key para todos los Typing → no re-anima
+    is BubbleState.Saved  -> 2
+}
+
 @Composable
 fun OverlayBubble(state: BubbleState = BubbleState.Idle) {
     GameNoteTheme {
+        // Anima SOLO cuando cambia el tipo (Idle↔Typing↔Saved), no al escribir
         AnimatedContent(
             targetState = state,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "bubble_state"
+            transitionSpec = {
+                fadeIn(tween(150)) togetherWith fadeOut(tween(150))
+            },
+            contentKey = { it.animKey() },
+            label = "bubble_type"
         ) { s ->
             when (s) {
-                is BubbleState.Idle -> IdleBubble()
+                is BubbleState.Idle   -> IdleBubble()
                 is BubbleState.Typing -> ComicBubble(text = s.text)
-                is BubbleState.Saved -> SavedBubble()
+                is BubbleState.Saved  -> SavedBubble()
             }
         }
     }
@@ -86,14 +86,11 @@ private fun IdleBubble() {
 
 @Composable
 private fun ComicBubble(text: String) {
-    // Bocadillo de cómic: fondo oscuro, borde verde, texto blanco, cola abajo-izquierda
     ComicSpeechBubble(
-        modifier = Modifier
-            .widthIn(min = 120.dp, max = 240.dp)
-            .shadow(6.dp, ComicBubbleShape(tailLeft = true), clip = false)
+        modifier = Modifier.widthIn(min = 120.dp, max = 240.dp)
     ) {
         Text(
-            text = if (text.isBlank()) "…" else text,
+            text = text.ifBlank { "…" },
             color = if (text.isBlank()) Color.White.copy(0.35f) else Color.White,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,

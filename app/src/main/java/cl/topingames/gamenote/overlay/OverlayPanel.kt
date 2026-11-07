@@ -2,25 +2,26 @@ package cl.topingames.gamenote.overlay
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -30,19 +31,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import cl.topingames.gamenote.ui.theme.GameNoteTheme
 
-private val PanelBg    = Color(0xFF0D1117).copy(alpha = 0.88f)
+// Panel ultra-minimalista: solo el campo y los botones de acción
+// La burbuja de cómic ya muestra el texto — el panel no necesita repetirlo
+private val PanelBg     = Color(0xFF0A0E14).copy(alpha = 0.82f)
 private val GreenAccent = Color(0xFF4CAF50)
-private val TextHint   = Color.White.copy(alpha = 0.35f)
+private val FieldBg     = Color.White.copy(alpha = 0.06f)
 
-/**
- * Panel sin ViewModel propio — el estado vive en OverlayService
- * para evitar el crash de Hilt fuera de una Activity/Fragment.
- */
 @Composable
 fun OverlayPanel(
     content: String,
@@ -61,95 +59,82 @@ fun OverlayPanel(
     }
 
     GameNoteTheme {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
                 .background(PanelBg)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "✎  Nota rápida",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = GreenAccent,
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(
-                    onClick = onOpenApp,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
-                ) {
-                    Text("Ver todo", color = Color.White.copy(alpha = 0.5f),
-                        style = MaterialTheme.typography.labelSmall)
-                }
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.width(32.dp).height(32.dp)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar",
-                        tint = Color.White.copy(alpha = 0.4f))
-                }
-            }
-
-            // Campo texto
+            // Campo de texto — toda la línea horizontal
             OutlinedTextField(
                 value = content,
                 onValueChange = onContentChange,
                 placeholder = {
-                    Text("coordenadas, semilla, estrategia…",
-                        color = TextHint,
-                        style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "coordenadas, semilla, estrategia…",
+                        color = Color.White.copy(alpha = 0.28f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp)
+                    .weight(1f)
+                    .height(52.dp)
                     .focusRequester(focusRequester),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = GreenAccent.copy(alpha = 0.6f),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                    focusedBorderColor   = GreenAccent.copy(alpha = 0.55f),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.10f),
                     cursorColor          = GreenAccent,
                     focusedTextColor     = Color.White,
-                    unfocusedTextColor   = Color.White
+                    unfocusedTextColor   = Color.White,
+                    focusedContainerColor   = FieldBg,
+                    unfocusedContainerColor = FieldBg
                 ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(10.dp),
+                singleLine = false,
+                maxLines = 2
             )
 
-            // Fila acción
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Botón "Ver todo" — icono pequeño
+            IconButton(
+                onClick = onOpenApp,
+                modifier = Modifier.size(38.dp)
             ) {
-                when {
-                    saved        -> Text("✓ Guardada", color = GreenAccent,
-                                        style = MaterialTheme.typography.labelSmall)
-                    error != null -> Text(error, color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.labelSmall)
-                    else         -> Spacer(Modifier.width(1.dp))
-                }
+                Icon(
+                    Icons.Default.OpenInNew,
+                    contentDescription = "Abrir app",
+                    tint = Color.White.copy(alpha = 0.35f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
 
+            // Botón guardar — círculo verde
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (content.isNotBlank()) GreenAccent
+                        else Color.White.copy(alpha = 0.08f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
                 IconButton(
                     onClick = onSave,
                     enabled = content.isNotBlank(),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (content.isNotBlank()) GreenAccent
-                            else Color.White.copy(alpha = 0.08f)
-                        )
-                        .width(44.dp)
-                        .height(36.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = "Guardar",
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Guardar",
                         tint = if (content.isNotBlank()) Color.White
-                               else Color.White.copy(alpha = 0.3f))
+                               else Color.White.copy(alpha = 0.25f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }

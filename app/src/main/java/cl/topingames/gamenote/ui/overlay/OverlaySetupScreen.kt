@@ -1,15 +1,16 @@
 package cl.topingames.gamenote.ui.overlay
 
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,11 +20,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -178,6 +181,63 @@ fun OverlaySetupScreen(
                     )
                 ) {
                     Text("■  Desactivar burbuja", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Sección teclado flotante
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Keyboard,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.size(6.dp))
+                        Text(
+                            "Teclado flotante (opcional)",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Si tu teclado lo soporta, puedes activar el modo flotante para que no tape el juego. Se abrirán los ajustes del teclado.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    val context = LocalContext.current
+                    OutlinedButton(
+                        onClick = {
+                            // Abre ajustes del método de entrada activo
+                            val imm = context.getSystemService(InputMethodManager::class.java)
+                            val currentIme = Settings.Secure.getString(
+                                context.contentResolver,
+                                Settings.Secure.DEFAULT_INPUT_METHOD
+                            )
+                            val pkg = currentIme?.substringBefore("/") ?: ""
+                            val intent = if (pkg.isNotEmpty()) {
+                                context.packageManager.getLaunchIntentForPackage(pkg)
+                                    ?: Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
+                            } else {
+                                Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
+                            }
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Ajustes del teclado →")
+                    }
                 }
             }
         }
