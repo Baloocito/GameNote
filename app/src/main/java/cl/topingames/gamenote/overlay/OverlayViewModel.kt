@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 data class OverlayUiState(
     val content: String = "",
-    val saved: Boolean = false,
+    val bubbleState: BubbleState = BubbleState.Idle,
     val error: String? = null
 )
 
@@ -29,7 +29,8 @@ class OverlayViewModel(
     val uiState: StateFlow<OverlayUiState> = _uiState.asStateFlow()
 
     fun onContentChange(value: String) {
-        _uiState.value = _uiState.value.copy(content = value, saved = false, error = null)
+        val newBubble = if (value.isBlank()) BubbleState.Idle else BubbleState.Typing(value)
+        _uiState.value = _uiState.value.copy(content = value, bubbleState = newBubble, error = null)
     }
 
     fun saveNote(onSuccess: () -> Unit) {
@@ -47,11 +48,12 @@ class OverlayViewModel(
                         updatedAt = now
                     )
                 )
-                _uiState.value = OverlayUiState(saved = true)
-                delay(500)
+                // Mostrar check en la burbuja 1 segundo antes de cerrar
+                _uiState.value = OverlayUiState(bubbleState = BubbleState.Saved)
+                delay(900)
                 onSuccess()
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Error: ${e.message?.take(40)}")
+                _uiState.value = _uiState.value.copy(error = "Error al guardar")
             }
         }
     }

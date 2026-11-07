@@ -143,7 +143,10 @@ class OverlayService : Service(),
         view.setViewTreeLifecycleOwner(this)
         view.setViewTreeViewModelStoreOwner(this)
         view.setViewTreeSavedStateRegistryOwner(this)
-        view.setContent { OverlayBubble() }
+        view.setContent {
+            val uiState by overlayViewModel.uiState.collectAsState()
+            OverlayBubble(state = uiState.bubbleState)
+        }
 
         var downRawX = 0f; var downRawY = 0f
         var downParamX = 0; var downParamY = 0
@@ -206,7 +209,7 @@ class OverlayService : Service(),
 
     private fun showPanel() {
         if (panelView != null) return
-        removeBubble()
+        // NO removemos la burbuja — sigue visible mostrando el texto en tiempo real
         overlayViewModel.reset()   // limpiar estado del panel anterior
 
         // Sin FLAG_NOT_FOCUSABLE ni FLAG_ALT_FOCUSABLE_IM:
@@ -231,12 +234,11 @@ class OverlayService : Service(),
         view.setViewTreeSavedStateRegistryOwner(this)
 
         view.setContent {
-            // Estado del ViewModel observado en Compose — sin viewModel(), sin Hilt
             val uiState by overlayViewModel.uiState.collectAsState()
 
             OverlayPanel(
                 content         = uiState.content,
-                saved           = uiState.saved,
+                saved           = uiState.bubbleState is BubbleState.Saved,
                 error           = uiState.error,
                 onContentChange = overlayViewModel::onContentChange,
                 onSave          = { overlayViewModel.saveNote { hidePanel() } },
@@ -270,7 +272,10 @@ class OverlayService : Service(),
 
     private fun hidePanel() {
         removePanel()
-        addBubble()
+        overlayViewModel.reset()
+        // La burbuja ya estaba visible — solo actualiza su estado a Idle
+        // Si por algún motivo fue removida, la re-agregamos
+        if (bubbleView == null) addBubble()
     }
 
     private fun removePanel() {
