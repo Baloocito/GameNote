@@ -69,7 +69,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 80.dp)
+            contentPadding = PaddingValues(bottom = 96.dp)
         ) {
             // Juegos recientes
             if (uiState.recentGames.isNotEmpty()) {
