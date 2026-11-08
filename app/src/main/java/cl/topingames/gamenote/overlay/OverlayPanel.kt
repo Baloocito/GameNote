@@ -3,6 +3,7 @@ package cl.topingames.gamenote.overlay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +48,7 @@ fun OverlayPanel(
     content: String,
     saved: Boolean,
     error: String?,
+    activeGameName: String? = null,
     onContentChange: (String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit,
@@ -59,82 +62,111 @@ fun OverlayPanel(
     }
 
     GameNoteTheme {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
                 .background(PanelBg)
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Campo de texto — toda la línea horizontal
-            OutlinedTextField(
-                value = content,
-                onValueChange = onContentChange,
-                placeholder = {
-                    Text(
-                        "coordenadas, semilla, estrategia…",
-                        color = Color.White.copy(alpha = 0.28f),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp)
-                    .focusRequester(focusRequester),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = GreenAccent.copy(alpha = 0.55f),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.10f),
-                    cursorColor          = GreenAccent,
-                    focusedTextColor     = Color.White,
-                    unfocusedTextColor   = Color.White,
-                    focusedContainerColor   = FieldBg,
-                    unfocusedContainerColor = FieldBg
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                shape = RoundedCornerShape(10.dp),
-                singleLine = false,
-                maxLines = 2
-            )
-
-            // Botón "Ver todo" — icono pequeño
-            IconButton(
-                onClick = onOpenApp,
-                modifier = Modifier.size(38.dp)
-            ) {
-                Icon(
-                    Icons.Default.OpenInNew,
-                    contentDescription = "Abrir app",
-                    tint = Color.White.copy(alpha = 0.35f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Botón guardar — círculo verde
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (content.isNotBlank()) GreenAccent
-                        else Color.White.copy(alpha = 0.08f)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(
-                    onClick = onSave,
-                    enabled = content.isNotBlank(),
-                    modifier = Modifier.size(42.dp)
+            // Etiqueta del juego activo (si existe)
+            if (activeGameName != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 14.dp, top = 7.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Default.Check,
-                        contentDescription = "Guardar",
-                        tint = if (content.isNotBlank()) Color.White
-                               else Color.White.copy(alpha = 0.25f),
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Default.SportsEsports,
+                        contentDescription = null,
+                        tint = GreenAccent,
+                        modifier = Modifier.size(12.dp)
                     )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = activeGameName,
+                        color = GreenAccent,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+
+            // Campo de texto + botones
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Campo de texto — toda la línea horizontal
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = onContentChange,
+                    placeholder = {
+                        Text(
+                            "coordenadas, semilla, estrategia…",
+                            color = Color.White.copy(alpha = 0.28f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .focusRequester(focusRequester),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = GreenAccent.copy(alpha = 0.55f),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.10f),
+                        cursorColor          = GreenAccent,
+                        focusedTextColor     = Color.White,
+                        unfocusedTextColor   = Color.White,
+                        focusedContainerColor   = FieldBg,
+                        unfocusedContainerColor = FieldBg
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = false,
+                    maxLines = 2
+                )
+
+                // Botón "Ver todo" — icono pequeño
+                IconButton(
+                    onClick = onOpenApp,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        Icons.Default.OpenInNew,
+                        contentDescription = "Abrir app",
+                        tint = Color.White.copy(alpha = 0.35f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Botón guardar — círculo verde
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (content.isNotBlank()) GreenAccent
+                            else Color.White.copy(alpha = 0.08f)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(
+                        onClick = onSave,
+                        enabled = content.isNotBlank(),
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Guardar",
+                            tint = if (content.isNotBlank()) Color.White
+                                   else Color.White.copy(alpha = 0.25f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

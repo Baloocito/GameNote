@@ -28,6 +28,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cl.topingames.gamenote.MainActivity
+import cl.topingames.gamenote.data.repository.GameRepository
 import cl.topingames.gamenote.data.repository.NoteRepository
 import android.view.inputmethod.InputMethodManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -37,11 +38,12 @@ import dagger.hilt.EntryPoint
 import javax.inject.Inject
 import kotlin.math.abs
 
-/** EntryPoint para obtener NoteRepository en un contexto no-Activity (Service). */
+/** EntryPoint para obtener repositorios en un contexto no-Activity (Service). */
 @EntryPoint
 @dagger.hilt.InstallIn(SingletonComponent::class)
 interface OverlayEntryPoint {
     fun noteRepository(): NoteRepository
+    fun gameRepository(): GameRepository
 }
 
 @AndroidEntryPoint
@@ -76,8 +78,9 @@ class OverlayService : Service(),
     private var bubbleY = 300
 
     companion object {
-        const val ACTION_SHOW = "cl.topingames.gamenote.OVERLAY_SHOW"
-        const val ACTION_HIDE  = "cl.topingames.gamenote.OVERLAY_HIDE"
+        const val ACTION_SHOW   = "cl.topingames.gamenote.OVERLAY_SHOW"
+        const val ACTION_HIDE   = "cl.topingames.gamenote.OVERLAY_HIDE"
+        const val EXTRA_GAME_ID = "cl.topingames.gamenote.GAME_ID"
         private const val CHANNEL_ID = "gamenote_overlay"
         private const val NOTIF_ID   = 1
         private const val DRAG_THRESHOLD = 8f
@@ -92,19 +95,26 @@ class OverlayService : Service(),
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        // Obtener NoteRepository via EntryPoint (applicationContext ya tiene el grafo de Hilt)
+        // Obtener repositorios via EntryPoint (applicationContext ya tiene el grafo de Hilt)
         val entryPoint = EntryPointAccessors.fromApplication(
             applicationContext,
             OverlayEntryPoint::class.java
         )
-        val factory = OverlayViewModel.Factory(entryPoint.noteRepository())
+        val factory = OverlayViewModel.Factory(
+            noteRepository = entryPoint.noteRepository(),
+            gameRepository = entryPoint.gameRepository()
+        )
         overlayViewModel = ViewModelProvider(this, factory)[OverlayViewModel::class.java]
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_HIDE -> { hideOverlay(); stopSelf() }
-            else        -> showOverlay()
+            else        -> {
+                val gameId = intent?.getLongExtra(EXTRA_GAME_ID, -1L)?.takeIf { it != -1L }
+                overlayViewModel.setActiveGame(gameId)
+                showOverlay()
+            }
         }
         return START_STICKY
     }
@@ -244,6 +254,7 @@ class OverlayService : Service(),
                 content         = uiState.content,
                 saved           = uiState.bubbleState is BubbleState.Saved,
                 error           = uiState.error,
+                activeGameName  = uiState.activeGameName,
                 onContentChange = overlayViewModel::onContentChange,
                 onSave          = { overlayViewModel.saveNote { hidePanel() } },
                 onDismiss       = { hidePanel() },

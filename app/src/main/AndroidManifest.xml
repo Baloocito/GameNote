@@ -36,6 +36,17 @@
                 android:value="Overlay flotante para tomar notas de juego sin salir de la partida"/>
         </service>
 
+        <!-- FileProvider para compartir el export de notas -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
     </application>
 
 </manifest>

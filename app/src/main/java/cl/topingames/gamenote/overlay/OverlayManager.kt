@@ -26,9 +26,10 @@ class OverlayManager @Inject constructor(
         context.startActivity(intent)
     }
 
-    fun startOverlay() {
+    fun startOverlay(gameId: Long? = null) {
         val intent = Intent(context, OverlayService::class.java).apply {
             action = OverlayService.ACTION_SHOW
+            if (gameId != null) putExtra(OverlayService.EXTRA_GAME_ID, gameId)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent)

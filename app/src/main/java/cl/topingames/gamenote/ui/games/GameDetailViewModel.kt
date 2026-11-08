@@ -6,6 +6,7 @@ import cl.topingames.gamenote.data.repository.GameRepository
 import cl.topingames.gamenote.data.repository.NoteRepository
 import cl.topingames.gamenote.domain.model.Game
 import cl.topingames.gamenote.domain.model.Note
+import cl.topingames.gamenote.overlay.OverlayManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -22,24 +23,28 @@ data class GameDetailUiState(
 @HiltViewModel
 class GameDetailViewModel @Inject constructor(
     private val gameRepository: GameRepository,
-    private val noteRepository: NoteRepository
+    private val noteRepository: NoteRepository,
+    private val overlayManager: OverlayManager
 ) : ViewModel() {
 
     private val _gameId = MutableStateFlow<Long?>(null)
     private val _searchQuery = MutableStateFlow("")
+    private val _game = MutableStateFlow<Game?>(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<GameDetailUiState> = _gameId
         .filterNotNull()
         .flatMapLatest { gameId ->
             combine(
+                _game,
                 _searchQuery.flatMapLatest { query ->
                     if (query.isBlank()) noteRepository.getNotesByGame(gameId)
                     else noteRepository.searchNotesInGame(gameId, query)
                 },
                 _searchQuery
-            ) { notes, query ->
+            ) { game, notes, query ->
                 GameDetailUiState(
+                    game = game,
                     notes = notes,
                     searchQuery = query,
                     isLoading = false
@@ -50,12 +55,19 @@ class GameDetailViewModel @Inject constructor(
     fun loadGame(gameId: Long) {
         _gameId.value = gameId
         viewModelScope.launch {
-            val game = gameRepository.getGameById(gameId)
-            // Update state with game info - handled by combining flows in production
+            _game.value = gameRepository.getGameById(gameId)
         }
     }
 
     fun onSearchChange(query: String) {
         _searchQuery.value = query
+    }
+
+    /** Lanza la burbuja flotante pre-vinculada al juego actual. */
+    fun launchBubbleForGame() {
+        val gameId = _gameId.value ?: return
+        if (overlayManager.hasPermission()) {
+            overlayManager.startOverlay(gameId)
+        }
     }
 }
