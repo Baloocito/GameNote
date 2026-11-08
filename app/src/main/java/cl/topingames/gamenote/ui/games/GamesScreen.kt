@@ -13,10 +13,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import cl.topingames.gamenote.domain.model.Game
-import androidx.compose.ui.text.style.TextOverflow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,55 +24,73 @@ fun GamesScreen(
     onNavigateToGame: (Long) -> Unit,
     onNavigateToAddGame: () -> Unit = {},
     onNavigateBack: () -> Unit,
+    outerPadding: PaddingValues = PaddingValues(),
     viewModel: GamesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var gameToDelete by remember { mutableStateOf<Game?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Mis Juegos", fontWeight = FontWeight.Bold) })
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToAddGame) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar juego")
-            }
-        }
-    ) { padding ->
-        // Siempre LazyColumn — así el FAB del Scaffold nunca queda tapado
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (uiState.games.isEmpty() && !uiState.isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 80.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("🎮", style = MaterialTheme.typography.displayLarge)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "Toca + para agregar tu primer juego",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
+    // Box que ocupa todo el espacio del Scaffold exterior
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(outerPadding)   // respeta el padding de la NavigationBar exterior
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // TopBar manual (sin Scaffold anidado)
+            TopAppBar(
+                title = { Text("Mis Juegos", fontWeight = FontWeight.Bold) }
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 16.dp, end = 16.dp,
+                    top = 8.dp,
+                    bottom = 88.dp   // espacio para que el FAB no tape el último item
+                ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (uiState.games.isEmpty() && !uiState.isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 80.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("🎮", style = MaterialTheme.typography.displayLarge)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    "Toca + para agregar tu primer juego",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
                         }
                     }
-                }
-            } else {
-                items(uiState.games, key = { it.id }) { game ->
-                    GameListItem(
-                        game = game,
-                        onClick = { onNavigateToGame(game.id) },
-                        onDelete = { gameToDelete = game }
-                    )
+                } else {
+                    items(uiState.games, key = { it.id }) { game ->
+                        GameListItem(
+                            game = game,
+                            onClick = { onNavigateToGame(game.id) },
+                            onDelete = { gameToDelete = game }
+                        )
+                    }
                 }
             }
+        }
+
+        // FAB posicionado en la esquina inferior derecha, encima de la lista
+        FloatingActionButton(
+            onClick = onNavigateToAddGame,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primary
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Agregar juego")
         }
     }
 
@@ -117,7 +135,13 @@ private fun GameListItem(game: Game, onClick: () -> Unit, onDelete: () -> Unit) 
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = game.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                Text(
+                    text = game.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 if (!game.platform.isNullOrBlank()) {
                     Text(
                         text = game.platform,
@@ -127,9 +151,12 @@ private fun GameListItem(game: Game, onClick: () -> Unit, onDelete: () -> Unit) 
                 }
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Eliminar",
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                )
             }
         }
     }
 }
-

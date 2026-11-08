@@ -84,8 +84,11 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                ) { _ ->
-                    GameNoteNavGraph(navController = navController)
+                ) { innerPadding ->
+                    GameNoteNavGraph(
+                        navController = navController,
+                        outerPadding = innerPadding
+                    )
                 }
             }
         }

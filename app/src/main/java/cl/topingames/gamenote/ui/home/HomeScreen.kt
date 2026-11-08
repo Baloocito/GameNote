@@ -1,12 +1,9 @@
 package cl.topingames.gamenote.ui.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -18,7 +15,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,12 +31,17 @@ fun HomeScreen(
     onNavigateToNewNote: () -> Unit,
     onNavigateToNote: (Long) -> Unit,
     onNavigateToSearch: () -> Unit,
+    outerPadding: PaddingValues = PaddingValues(),
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(outerPadding)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = {
                     Text(
@@ -55,52 +56,49 @@ fun HomeScreen(
                     }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToNewNote,
-                containerColor = MaterialTheme.colorScheme.primary
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 88.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Nueva nota")
+                // Juegos recientes
+                if (uiState.recentGames.isNotEmpty()) {
+                    item { SectionHeader(title = "Juegos recientes") }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(uiState.recentGames) { game ->
+                                GameChip(game = game, onClick = { onNavigateToGame(game.id) })
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+
+                // Notas recientes
+                item { SectionHeader(title = "Notas recientes") }
+
+                if (uiState.recentNotes.isEmpty() && !uiState.isLoading) {
+                    item { EmptyNotesHint(onCreateNote = onNavigateToNewNote) }
+                } else {
+                    items(uiState.recentNotes) { note ->
+                        NoteCard(note = note, onClick = { onNavigateToNote(note.id) })
+                    }
+                }
             }
         }
-    ) { padding ->
-        LazyColumn(
+
+        // FAB sobre la lista, respeta el bottom de la NavigationBar vía outerPadding
+        FloatingActionButton(
+            onClick = onNavigateToNewNote,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(bottom = 96.dp)
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primary
         ) {
-            // Juegos recientes
-            if (uiState.recentGames.isNotEmpty()) {
-                item {
-                    SectionHeader(title = "Juegos recientes")
-                }
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.recentGames) { game ->
-                            GameChip(game = game, onClick = { onNavigateToGame(game.id) })
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-
-            // Notas recientes
-            item {
-                SectionHeader(title = "Notas recientes")
-            }
-
-            if (uiState.recentNotes.isEmpty() && !uiState.isLoading) {
-                item { EmptyNotesHint(onCreateNote = onNavigateToNewNote) }
-            } else {
-                items(uiState.recentNotes) { note ->
-                    NoteCard(note = note, onClick = { onNavigateToNote(note.id) })
-                }
-            }
+            Icon(Icons.Default.Add, contentDescription = "Nueva nota")
         }
     }
 }

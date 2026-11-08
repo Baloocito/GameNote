@@ -39,7 +39,10 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun GameNoteNavGraph(navController: NavHostController) {
+fun GameNoteNavGraph(
+    navController: NavHostController,
+    outerPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues()
+) {
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route
@@ -57,7 +60,8 @@ fun GameNoteNavGraph(navController: NavHostController) {
                 },
                 onNavigateToSearch = {
                     navController.navigate(Screen.Search.route)
-                }
+                },
+                outerPadding = outerPadding
             )
         }
 
@@ -67,7 +71,8 @@ fun GameNoteNavGraph(navController: NavHostController) {
                     navController.navigate(Screen.GameDetail.createRoute(gameId))
                 },
                 onNavigateToAddGame = { navController.navigate(Screen.AddGame.route) },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                outerPadding = outerPadding
             )
         }
 
