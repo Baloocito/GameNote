@@ -6,12 +6,16 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cl.topingames.gamenote.data.repository.NoteRepository
+import cl.topingames.gamenote.data.repository.ThemeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -27,18 +31,24 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val noteRepository: NoteRepository
+    private val noteRepository: NoteRepository,
+    private val themeRepository: ThemeRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SettingsUiState())
-    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+    private val _exportStatus = MutableStateFlow<String?>(null)
+
+    val uiState: StateFlow<SettingsUiState> = combine(
+        themeRepository.isDarkMode,
+        _exportStatus
+    ) { dark, status -> SettingsUiState(darkMode = dark, exportStatus = status) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun setDarkMode(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(darkMode = enabled)
+        viewModelScope.launch { themeRepository.setDarkMode(enabled) }
     }
 
     fun clearExportStatus() {
-        _uiState.value = _uiState.value.copy(exportStatus = null)
+        _exportStatus.value = null
     }
 
     fun exportNotes() {
@@ -46,7 +56,7 @@ class SettingsViewModel @Inject constructor(
             try {
                 val notes = noteRepository.getAllNotes().first()
                 if (notes.isEmpty()) {
-                    _uiState.value = _uiState.value.copy(exportStatus = "No hay notas para exportar.")
+                    _exportStatus.value = "No hay notas para exportar."
                     return@launch
                 }
 
@@ -89,7 +99,7 @@ class SettingsViewModel @Inject constructor(
                 })
 
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(exportStatus = "Error al exportar: ${e.message}")
+                _exportStatus.value = "Error al exportar: ${e.message}"
             }
         }
     }

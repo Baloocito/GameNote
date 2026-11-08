@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import cl.topingames.gamenote.ui.games.AddGameScreen
 import cl.topingames.gamenote.ui.games.GameDetailScreen
 import cl.topingames.gamenote.ui.games.GamesScreen
 import cl.topingames.gamenote.ui.home.HomeScreen
@@ -34,6 +35,7 @@ sealed class Screen(val route: String) {
     object Search : Screen("search")
     object Settings : Screen("settings")
     object Overlay : Screen("overlay")
+    object AddGame : Screen("add_game")
 }
 
 @Composable
@@ -64,8 +66,13 @@ fun GameNoteNavGraph(navController: NavHostController) {
                 onNavigateToGame = { gameId ->
                     navController.navigate(Screen.GameDetail.createRoute(gameId))
                 },
+                onNavigateToAddGame = { navController.navigate(Screen.AddGame.route) },
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+
+        composable(Screen.AddGame.route) {
+            AddGameScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(

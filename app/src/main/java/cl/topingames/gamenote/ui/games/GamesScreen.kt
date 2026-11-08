@@ -16,16 +16,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import cl.topingames.gamenote.domain.model.Game
+import androidx.compose.ui.text.style.TextOverflow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GamesScreen(
     onNavigateToGame: (Long) -> Unit,
+    onNavigateToAddGame: () -> Unit = {},
     onNavigateBack: () -> Unit,
     viewModel: GamesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
     var gameToDelete by remember { mutableStateOf<Game?>(null) }
 
     Scaffold(
@@ -33,7 +34,7 @@ fun GamesScreen(
             TopAppBar(title = { Text("Mis Juegos", fontWeight = FontWeight.Bold) })
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(onClick = onNavigateToAddGame) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar juego")
             }
         }
@@ -68,16 +69,6 @@ fun GamesScreen(
                 }
             }
         }
-    }
-
-    if (showAddDialog) {
-        AddGameDialog(
-            onConfirm = { name, platform, emoji ->
-                viewModel.saveGame(name, platform, emoji, null)
-                showAddDialog = false
-            },
-            onDismiss = { showAddDialog = false }
-        )
     }
 
     gameToDelete?.let { game ->
@@ -137,52 +128,3 @@ private fun GameListItem(game: Game, onClick: () -> Unit, onDelete: () -> Unit) 
     }
 }
 
-@Composable
-private fun AddGameDialog(onConfirm: (String, String?, String?) -> Unit, onDismiss: () -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var platform by remember { mutableStateOf("") }
-    var emoji by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Nuevo juego") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nombre del juego *") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = platform,
-                    onValueChange = { platform = it },
-                    label = { Text("Plataforma (opcional)") },
-                    singleLine = true,
-                    placeholder = { Text("PC, Android, PS5…") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = emoji,
-                    onValueChange = { emoji = it },
-                    label = { Text("Emoji (opcional)") },
-                    singleLine = true,
-                    placeholder = { Text("🎮 ⚔️ 🏰") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isNotBlank()) {
-                        onConfirm(name.trim(), platform.trim().ifBlank { null }, emoji.trim().ifBlank { null })
-                    }
-                },
-                enabled = name.isNotBlank()
-            ) { Text("Crear") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
-    )
-}

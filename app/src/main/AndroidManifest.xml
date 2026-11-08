@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Acceso a internet para buscar carátulas en RAWG -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Permiso para dibujar sobre otras apps (overlay / burbuja flotante) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Foreground service para mantener la burbuja viva -->
